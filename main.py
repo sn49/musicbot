@@ -28,7 +28,7 @@ async def connect(ctx):
     await ch.connect()
 
 
-async def realPlay(index):
+async def realPlay(index, ctx):
     global playingIndex
     global urlList
 
@@ -41,6 +41,7 @@ async def realPlay(index):
 
     voice = bot.voice_clients[0]
     voice.play(discord.FFmpegPCMAudio(playList[int(index) - 1][1], **mpeg_opt))
+    await ctx.send(f"{playList[int(index) - 1][0]} 재생")
 
 
 @bot.command()
@@ -49,23 +50,44 @@ async def playcheck(ctx):
     voice = bot.voice_clients[0]
 
     if not voice.is_playing() and not voice.is_paused():
-        playingIndex=None
+        playingIndex = None
         await ctx.send(f"재생하고 있는 곡이 없음")
     else:
         await ctx.send(f"{playingIndex} : {playList[int(playingIndex) - 1][0]} 재생중")
 
-    
-
 
 @bot.command()
 async def play(ctx, index):
-    await realPlay(index)
+
+    await CheckChannel(ctx)
+
+    await realPlay(index, ctx)
+
+
+async def CheckChannel(ctx):
+    if not ctx.author.voice:
+        await ctx.send("음챗에 있어야 합니다.")
+        return
+
+    if not bot.user in ctx.author.voice.channel.members:
+        await ctx.send("봇이 있는 채널에 있어야 합니다.")
+        return
 
 
 @bot.command()
 async def add(ctx, url):
     global urlList
     global titleList
+
+    await CheckChannel(ctx)
+
+    if not ctx.author.voice:
+        await ctx.send("음챗에 있어야 합니다.")
+        return
+
+    if not bot.user in ctx.author.voice.channel.members:
+        await ctx.send("봇이 있는 채널에 있어야 합니다.")
+        return
 
     opt = {"format": "bestaudio"}
 
@@ -88,13 +110,16 @@ async def add(ctx, url):
     for i in tempUrl:
         if not [tempTitle[index], i] in playList:
             playList.append([tempTitle[index], i])
-            print(len(playList))
+
         index += 1
+    await ctx.send("추가 완료")
 
 
 @bot.command()
 async def reset(ctx):
     global playList
+
+    await CheckChannel(ctx)
 
     playList.clear()
 
@@ -125,6 +150,8 @@ async def delete(ctx, index):
     global playList
     global playingIndex
 
+    await CheckChannel(ctx)
+
     del playList[int(index) - 1]
 
     if playingIndex > int(index):
@@ -137,29 +164,44 @@ async def autoplay(ctx):
     global playList
     voice = bot.voice_clients[0]
 
+    await CheckChannel(ctx)
+
     while True:
         if not voice.is_playing() and not voice.is_paused():
             if playingIndex == len(playList) or playingIndex == None:
-                await realPlay(1)
+                await realPlay(1, ctx)
             else:
-                await realPlay(playingIndex + 1)
+                await realPlay(playingIndex + 1, ctx)
 
         await asyncio.sleep(3)
 
 
 @bot.command()
 async def leave(ctx):
+    await CheckChannel(ctx)
+
     await bot.voice_clients[0].disconnect()
 
 
 @bot.command()
 async def pause(ctx):
+    await CheckChannel(ctx)
+
     await bot.voice_clients[0].pause()
 
 
 @bot.command()
 async def resume(ctx):
+    await CheckChannel(ctx)
+
     await bot.voice_clients[0].resume()
+
+
+@bot.command()
+async def stop(ctx):
+    await CheckChannel(ctx)
+
+    await bot.voice_clients[0].stop()
 
 
 bot.run(token)
